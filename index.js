@@ -3,8 +3,10 @@ const app = express()
 const bodyParser = require('body-parser')
 const morgan = require('morgan')
 const cors = require('cors')
+const path = require('path')
 
 // register middleware
+app.use(express.static(path.join(__dirname,'build')))
 app.use(bodyParser.json())
 app.use(cors())
 morgan.token('body', (req,res)=> {
