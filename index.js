@@ -2,9 +2,11 @@ const express = require('express')
 const app = express()
 const bodyParser = require('body-parser')
 const morgan = require('morgan')
+const cors = require('cors')
 
-// register middleare
+// register middleware
 app.use(bodyParser.json())
+app.use(cors())
 morgan.token('body', (req,res)=> {
     return JSON.stringify(req.body)
 })
@@ -95,6 +97,7 @@ app.post('/api/persons', (req,res) => {
     }    
 })
 
-const PORT = 3001
-app.listen(PORT)
-console.log(`Server Listening on port: ${PORT}`)
+const PORT = process.env.PORT || 3001
+app.listen(PORT, () => {
+    console.log(`Server running at ${PORT}`)
+})
