@@ -1,9 +1,11 @@
+require('dotenv').config()
 const express = require('express')
 const app = express()
 const bodyParser = require('body-parser')
 const morgan = require('morgan')
 const cors = require('cors')
 const path = require('path')
+const Phone = require('./models/phone')
 
 // register middleware
 app.use(express.static(path.join(__dirname,'build')))
@@ -14,90 +16,106 @@ morgan.token('body', (req,res)=> {
 })
 app.use(morgan(':method :url :status :res[content-length] - :response-time ms :body'))
 
-let phones = [
-   {
-       "id": 1,
-       "name": "Julius Kimuli",
-       "number": "0791448850"
-   },
-
-   {
-    "id": 2,
-    "name": "Ahmed Bandese",
-    "number": "0791448856"
-   },
-
-   {
-    "id": 3,
-    "name": "James Bwambale",
-    "number": "0791448857"
-   },
-]
-
-const generateId = () => {
-    return Math.floor(Math.random() * Math.floor(100000));
-}
-
-app.get('/info', (req,res) => {
-
-    const returnText = `<p>Phonebook has info for ${phones.length} people</p>
-                        <p>${new Date()} </p>`
-    res.send(returnText)
+app.get('/info', (req,res,next) => {
+    Phone.find().estimatedDocumentCount().then(
+        count => res.send(`<p>Phonebook has info for ${count} people</p>
+        <p>${new Date()} </p>`)
+        )
+        .catch(err => next(err))    
+    
 })
 
 // return all persons in the phonebook
 app.get('/api/persons', (req,res)=>{
-   res.json(phones)
+   Phone.find({})
+        .then(phones => res.json(phones))
+        .catch(err => res.status(400).json(`Error: ${err}`))
+   
 })
 
 //return a specific phonebook contact
-app.get('/api/persons/:id', (req,res) => {
-    const id = Number(req.params.id)
-    const phone = phones.find( phone => phone.id === id)
-
-    if(phone){
-        res.json(phone)
-    }else{
-        res.status(404).end()
-    }
+app.get('/api/persons/:id', (req,res,next) => {
+    Phone.findById(req.params.id)
+         .then(phone => {
+             if(phone){
+                res.json(phone.toJSON())
+             }else{
+                res.status(404).end()
+             }
+         })   
+         .catch(err => next(err))
 })
 
 // Delete a phonebook contact
 
-app.delete('/api/persons/:id', (request, response) => {
-    const id = Number(request.params.id)
-    phones = phones.filter(phone => phone.id !== id)  
-    response.status(204).end()
+app.delete('/api/persons/:id', (request, response,next) => {    
+    Phone.findByIdAndRemove(request.params.id)
+    .then(result => {
+      response.status(204).end()
+    })
+    .catch(error => next(error))
 
 })
 
 // adding a new phonebook entry
 
-app.post('/api/persons', (req,res) => {
+app.post('/api/persons', (req,res,next) => {
     // check for empty name or number
-    const body = req.body
-    const phone_names = phones.map(phone=>phone.name) // all names already in the phonebook
+    const body = req.body   
 
     if(!body.name || !body.number){
         return res.status(404).json({
             'error': 'Missing number or phone number'
-        })
-    }else if(phone_names.includes(body.name)){
-       return res.status(404).json({
-           'error': 'This name already exists in the phonebook'
-       })
+      })
+    
     }else{
-        const phone_number = {
-            "id": generateId(),
-            "name": body.name,
-            "number": body.number
-        }
+        const phone = new Phone({
+            name:body.name,
+            number:body.number
+        })
 
-        // add to the phonebook array    
-        phones = phones.concat(phone_number)
-        res.json(phone_number)
+        phone.save()
+             .then((savedPhone)=> res.json(savedPhone.toJSON()))
+             .catch(err => next(err))
     }    
 })
+
+// update phone number for a specific contact
+
+app.put('/api/persons/:id', (request, response,next) => { 
+    const phone = {
+        name:request.body.name,
+        number:request.body.number
+    }   
+    Phone.findByIdAndUpdate(request.params.id,phone,{new:true})
+        .then(updatedPhone => {
+        response.json(updatedPhone.toJSON())
+      })
+      .catch(error => next(error))
+         
+})
+
+const unknownEndpoint = (request, response) => {
+    response.status(404).send({ error: 'unknown endpoint' })
+}
+
+// handler of requests with unknown endpoint
+app.use(unknownEndpoint)
+
+// Error Handling middleware
+const errorHandler = (error, request, response, next) => {
+    console.error(error.message)
+  
+    if (error.name === 'CastError' && error.kind === 'ObjectId') {
+      return response.status(400).send({ error: 'malformatted id' })
+    } else if (error.name ==='ValidationError'){
+        return response.status(400).json({ error: error.message })
+    }
+  
+    next(error)
+  }
+  
+app.use(errorHandler)
 
 const PORT = process.env.PORT || 3001
 app.listen(PORT, () => {
