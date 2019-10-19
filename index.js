@@ -1,72 +1,72 @@
-require('dotenv').config()
-const express = require('express')
+require("dotenv").config()
+const express = require("express")
 const app = express()
-const bodyParser = require('body-parser')
-const morgan = require('morgan')
-const cors = require('cors')
-const path = require('path')
-const Phone = require('./models/phone')
+const bodyParser = require("body-parser")
+const morgan = require("morgan")
+const cors = require("cors")
+const path = require("path")
+const Phone = require("./models/phone")
 
 // register middleware
-app.use(express.static(path.join(__dirname,'build')))
+app.use(express.static(path.join(__dirname,"build")))
 app.use(bodyParser.json())
 app.use(cors())
-morgan.token('body', (req,res)=> {
+morgan.token("body", (req,res)=> {
     return JSON.stringify(req.body)
 })
-app.use(morgan(':method :url :status :res[content-length] - :response-time ms :body'))
+app.use(morgan(":method :url :status :res[content-length] - :response-time ms :body"))
 
-app.get('/info', (req,res,next) => {
+app.get("/info", (req,res,next) => {
     Phone.find().estimatedDocumentCount().then(
         count => res.send(`<p>Phonebook has info for ${count} people</p>
         <p>${new Date()} </p>`)
-        )
+    )
         .catch(err => next(err))    
     
 })
 
 // return all persons in the phonebook
-app.get('/api/persons', (req,res)=>{
-   Phone.find({})
+app.get("/api/persons", (req,res)=>{
+    Phone.find({})
         .then(phones => res.json(phones))
         .catch(err => res.status(400).json(`Error: ${err}`))
    
 })
 
 //return a specific phonebook contact
-app.get('/api/persons/:id', (req,res,next) => {
+app.get("/api/persons/:id", (req,res,next) => {
     Phone.findById(req.params.id)
-         .then(phone => {
-             if(phone){
+        .then(phone => {
+            if(phone){
                 res.json(phone.toJSON())
-             }else{
+            }else{
                 res.status(404).end()
-             }
-         })   
-         .catch(err => next(err))
+            }
+        })   
+        .catch(err => next(err))
 })
 
 // Delete a phonebook contact
 
-app.delete('/api/persons/:id', (request, response,next) => {    
+app.delete("/api/persons/:id", (request, response,next) => {    
     Phone.findByIdAndRemove(request.params.id)
-    .then(result => {
-      response.status(204).end()
-    })
-    .catch(error => next(error))
+        .then(result => {
+            response.status(204).end()
+        })
+        .catch(error => next(error))
 
 })
 
 // adding a new phonebook entry
 
-app.post('/api/persons', (req,res,next) => {
+app.post("/api/persons", (req,res,next) => {
     // check for empty name or number
     const body = req.body   
 
     if(!body.name || !body.number){
         return res.status(404).json({
-            'error': 'Missing number or phone number'
-      })
+            "error": "Missing number or phone number"
+        })
     
     }else{
         const phone = new Phone({
@@ -75,28 +75,28 @@ app.post('/api/persons', (req,res,next) => {
         })
 
         phone.save()
-             .then((savedPhone)=> res.json(savedPhone.toJSON()))
-             .catch(err => next(err))
+            .then((savedPhone)=> res.json(savedPhone.toJSON()))
+            .catch(err => next(err))
     }    
 })
 
 // update phone number for a specific contact
 
-app.put('/api/persons/:id', (request, response,next) => { 
+app.put("/api/persons/:id", (request, response,next) => { 
     const phone = {
         name:request.body.name,
         number:request.body.number
     }   
     Phone.findByIdAndUpdate(request.params.id,phone,{new:true})
         .then(updatedPhone => {
-        response.json(updatedPhone.toJSON())
-      })
-      .catch(error => next(error))
+            response.json(updatedPhone.toJSON())
+        })
+        .catch(error => next(error))
          
 })
 
 const unknownEndpoint = (request, response) => {
-    response.status(404).send({ error: 'unknown endpoint' })
+    response.status(404).send({ error: "unknown endpoint" })
 }
 
 // handler of requests with unknown endpoint
@@ -106,14 +106,14 @@ app.use(unknownEndpoint)
 const errorHandler = (error, request, response, next) => {
     console.error(error.message)
   
-    if (error.name === 'CastError' && error.kind === 'ObjectId') {
-      return response.status(400).send({ error: 'malformatted id' })
-    } else if (error.name ==='ValidationError'){
+    if (error.name === "CastError" && error.kind === "ObjectId") {
+        return response.status(400).send({ error: "malformatted id" })
+    } else if (error.name ==="ValidationError"){
         return response.status(400).json({ error: error.message })
     }
   
     next(error)
-  }
+}
   
 app.use(errorHandler)
 
