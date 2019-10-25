@@ -11,9 +11,10 @@ const Phone = require("./models/phone")
 app.use(express.static(path.join(__dirname,"build")))
 app.use(bodyParser.json())
 app.use(cors())
-morgan.token("body", (req,res)=> {
+morgan.token("body", (req,res) => {
     return JSON.stringify(req.body)
 })
+
 app.use(morgan(":method :url :status :res[content-length] - :response-time ms :body"))
 
 app.get("/info", (req,res,next) => {
@@ -118,6 +119,7 @@ const errorHandler = (error, request, response, next) => {
 app.use(errorHandler)
 
 const PORT = process.env.PORT || 3001
+
 app.listen(PORT, () => {
     console.log(`Server running at ${PORT}`)
 })
